@@ -1,0 +1,91 @@
+L5: \x0d
+L6: const I18N = {\x0d
+L7:   zh: {\x0d
+L8:     appName: '\x9429\x6827\x5f72\x93c8\x5b2a\x5f38\x9366?AI\x9365\x5267\x5896\x9422\x71b8\x579a',\x0d
+L9:     poweredBy: '\x6fb6\x6c31\x80ccAPI \x6939\x535e\x59e9',\x0d
+L10:     mode: '\x59af\x2033\x7d21',\x0d
+L11:     textToImage: '\x93c2\x56e9\x6553\x9365?,\x0d
+L12:     editImage: '\x9365\x5267\x6553\x9365?,\x0d
+L13:     prompt: '\x93bb\x612e\x305a\x7487?,\x0d
+L14:     promptPlaceholderText: '\x93bb\x5fda\x582a\x6d63\x72b3\x5142\x7455\x4f7a\x6553\x93b4\x612e\x6b91\x9365\x5267\x5896...',\x0d
+L15:     promptPlaceholderEdit: '\x93bb\x5fda\x582a\x6d63\x72b2\xe1ee\x9365\x5267\x5896\x9428\x52ec\x6e61\x93c8\x6d99\x657c\x9354?..',\x0d
+L16:     refImage: '\x9359\x509d\x20ac\x51a8\x6d58\x9417?,\x0d
+L17:     refImageTip: '\x951b\x5825\x20ac\x590a\x5f2c\x9470\x51a8\x6d58\x9357\x5ba0\x7e58\x934f\x30e5\x6d58\x9422\x71b7\x6d58\x59af\x2033\x7d21\x951b?,\x0d
+L18:     size: '\x9365\x5267\x5896\x704f\x54c4\xe1ed',\x0d
+L19:     sizeCustom: '\x9477\xe044\x757e\x6d94\x590a\x6602\x7035?,\x0d
+L20:     sizeCustomPlaceholder: '\x6e1a\x5b2a\xe6e7\x951b?920\x81331080',\x0d
+L21:     quality: '\x9422\x71b8\x579a\x7490\x3129\x567a',\x0d
+L22:     qualityStandard: '\x93cd\x56e7\x566f',\x0d
+L23:     qualityHigh: '\x6942\x6a3b\x7afb',\x0d
+L24:     qualityUltra: '\x74d2\x5474\x73ee\x5a13?,\x0d
+L25:     number: '\x93c1\x4f34\x567a',\x0d
+L26:     generate: '\x9241?\x9422\x71b8\x579a\x9365\x5267\x5896',\x0d
+L27:     cancel: '\x9359\x6828\x79f7',\x0d
+L28:     submitting: '\x59dd\xff45\x6e6a\x93bb\x612a\x6c26...',\x0d
+L29:     generating: '\x9422\x71b8\x579a\x6d93?..',\x0d
+L30:     generatedCount: '\x9422\x71b8\x579a\x6d5c?{n} \x5bee\x72b2\x6d58\x9417?,\x0d
+L31:     clickToView: '\x9410\x7470\x56ae\x93cc\x30e7\x6e45\x6fb6\x443\x6d58',\x0d
+L32:     download: '\x6d93\x5b2d\x6d47',\x0d
+L33:     emptyTipTitle: '\x6748\x64b3\x53c6\x93bb\x612e\x305a\x7487\x5d8f\x7d1d\x5bee\x20ac\x6fee\x5b2a\x57b1\x6d63?,\x0d
+L34:     emptyTipSub: '\x93c0\xe21b\x5bd4\x93c2\x56e9\x6553\x9365\x60e7\x62f0\x9365\x5267\x6553\x9365\x70ac\x101\x5bee?,\x0d
+L35:     generatingTitle: '\x9365\x5267\x5896\x9422\x71b8\x579a\x6d93?,\x0d
+L36:     generatingSub: '\x68f0\x52ee\xe178\x95c7\x20ac\x7455?10-60 \x7ec9\x639e\x7d1d\x7487\x98ce\x25e2\x934a?,\x0d
+L37:     taskId: '\x6d60\x8bf2\x59dfID',\x0d
+L38:     errorTitle: '\x9422\x71b8\x579a\x6fb6\x8fab\x89e6',\x0d
+L39:     retry: '\x95b2\x5d88\x762f',\x0d
+L40:     downloadTip: '\x9983\x6315 \x93bb\x612e\x305a',\x0d
+L41:     downloadTipText: '\x9365\x5267\x5896\x5bb8\x832c\x6553\x93b4\x612c\x756c\x59e3\x66ea\x7d1d\x9410\x7470\x56ae\x9359\x5145\x7b02\x7459\x638d\x7b05\x675e\x82a5\x5bdc\x95bd\xe1bc\x5f72\x6dc7\x6fc6\x74e8\x9352\x7248\x6e70\x9366\x822c\x20ac?,\x0d
+L42:     downloadTipRetry: '\x9410\x7470\x56ae\x6d93\x5a43\x67df"\x9422\x71b8\x579a\x9365\x5267\x5896"\x93b8\x5910\x6333\x9359\xe21c\x6237\x7f01\xe15e\x57b1\x6d63\x6ebf\x20ac?,\x0d
+L43:     error: '\x7487\x75af\x7ded\x934f\x30e6\x5f41\x7ec0\x9e3f\x761d',\x0d
+L44:     history: '\x9358\x55d7\x5f76\x7481\x677f\x7d8d',\x0d
+L45:     historyEmpty: '\x93c6\x509b\x68e4\x9358\x55d7\x5f76\x7481\x677f\x7d8d',\x0d
+L46:     historyDelete: '\x9352\x72bb\x6ace',\x0d
+L47:     historyClear: '\x5a13\x546f\x2516\x934f\x3129\x5134',\x0d
+L48:     historyConfirmClear: '\x7ead\xe1bc\x757e\x5a13\x546f\x2516\x934f\x3129\x5134\x9358\x55d7\x5f76\x7481\x677f\x7d8d\x951b?,\x0d
+L49:     // model\x0d
+L50:     modelApi: '\x935a\x5ea3\xe06c\x93ba\x30e5\x5f5b\x9366\x677f\x6f43',\x0d
+L51:     modelApiPlaceholder: '\x6e1a\x5b2a\xe6e7\x951b\x6b68ttp://localhost:3001',\x0d
+L52:     modelKey: 'API Key',\x0d
+L53:     modelKeyPlaceholder: '\x6748\x64b3\x53c6\x6d63\x72b5\x6b91 API Key',\x0d
+L54:     modelSave: '\x6dc7\x6fc6\x74e8',\x0d
+L55:     modelSaved: '\x9241?\x5bb8\x8e6d\x7e5a\x701b?,\x0d
+L56:     modelTest: '\x5a34\x5b2d\x762f',\x0d
+L57:     modelTestOk: '\x9241?\x6769\x70b4\x5e34\x93b4\x612c\x59db',\x0d
+L58:     modelTestFail: '\x9241?\x6769\x70b4\x5e34\x6fb6\x8fab\x89e6',\x0d
+L59:     // sizes\x0d
+L60:     size_1k: '1K (1024\x8133576)',\x0d
+L61:     size_2k: '2K (2048\x81331152)',\x0d
+L62:     size_4k: '4K (4096\x81332304)',\x0d
+L63:     size_1080p: '1080p (1920\x81331080)',\x0d
+L64:     size_720p: '720p (1280\x8133720)',\x0d
+L65:     size_custom: '\x9477\xe044\x757e\x6d94?,\x0d
+L66:   },\x0d
+L67:   en: {\x0d
+L68:     appName: 'Gaike Moments - AI Image Generator',\x0d
+L69:     poweredBy: 'Powered by DuomiAPI',\x0d
+L70:     mode: 'Mode',\x0d
+L71:     textToImage: 'Text to Image',\x0d
+L72:     editImage: 'Edit Image',\x0d
+L73:     prompt: 'Prompt',\x0d
+L74:     promptPlaceholderText: 'Describe the image you want to generate...',\x0d
+L75:     promptPlaceholderEdit: 'Describe how you want to edit the image...',\x0d
+L76:     refImage: 'Reference Image',\x0d
+L77:     refImageTip: '(Upload to switch to Edit mode)',\x0d
+L78:     size: 'Image Size',\x0d
+L79:     sizeCustom: 'Custom Size',\x0d
+L80:     sizeCustomPlaceholder: 'e.g. 1920\x81331080',\x0d
+L81:     quality: 'Quality',\x0d
+L82:     qualityStandard: 'Standard',\x0d
+L83:     qualityHigh: 'HD',\x0d
+L84:     qualityUltra: 'Ultra HD',\x0d
+L85:     number: 'Count',\x0d
+L86:     generate: '\x9241?Generate Image',\x0d
+L87:     cancel: 'Cancel',\x0d
+L88:     submitting: 'Submitting...',\x0d
+L89:     generating: 'Generating...',\x0d
+L90:     generatedCount: '{n} image(s) generated',\x0d
+L91:     clickToView: 'Click to view full size',\x0d
+L92:     download: 'Download',\x0d
+L93:     emptyTipTitle: 'Enter a prompt to start',\x0d
+L94:     emptyTipSub: 'Supports Text-to-Image and Image Editing',\x0d
+L95:     generatingTitle: 'Generating image',\x0d
