@@ -10,9 +10,13 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// 多米 API 基础配置
+// 多米 API 基础配置（nano-banana / kling / MJ Feed 查询）
 const DUOMI_API_BASE = 'https://duomiapi.com';
 const DUOMI_API_KEY = process.env.DUOMI_API_KEY || '';
+
+// Wike API 基础配置（MJ 提交）
+const WIKE_API_BASE = 'https://api.wike.cc';
+const WIKE_API_KEY = process.env.WIKE_API_KEY || '';
 
 // ──────────────────────────────────────────────
 // Helper: 调用多米 API (POST)
@@ -23,7 +27,7 @@ async function duomiPost(path: string, body: Record<string, unknown>) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'key': DUOMI_API_KEY,
+      'Authorization': DUOMI_API_KEY,
     },
     body: JSON.stringify(body),
   });
@@ -36,8 +40,22 @@ async function duomiGet(path: string) {
   const resp = await fetch(url, {
     method: 'GET',
     headers: {
-      'key': DUOMI_API_KEY,
+      'Authorization': DUOMI_API_KEY,
     },
+  });
+  return await resp.json() as Record<string, unknown>;
+}
+
+// Helper: 调用 Wike API (POST) — MJ 提交专用
+async function wikePost(path: string, body: Record<string, unknown>) {
+  const url = `${WIKE_API_BASE}${path}`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json;charset=utf-8',
+      'Authorization': WIKE_API_KEY,
+    },
+    body: JSON.stringify(body),
   });
   return await resp.json() as Record<string, unknown>;
 }
@@ -81,6 +99,13 @@ app.get('/api/models', (_req, res) => {
         description: 'MJ 免费图片生成',
         type: 'image',
         icon: '✨',
+      },
+      {
+        id: 'gpt-image-2',
+        name: 'GPT Image 2',
+        description: 'GPT 图片生成模型',
+        type: 'image',
+        icon: '🖼️',
       },
     ],
   });
@@ -323,15 +348,21 @@ app.post('/api/mj/imagine', async (req, res) => {
     });
   }
 
+  if (!WIKE_API_KEY) {
+    return res.status(500).json({
+      error: { message: 'WIKE_API_KEY not configured', type: 'server_error' }
+    });
+  }
+
   try {
-    const duomiBody: Record<string, unknown> = {
+    const wikeBody: Record<string, unknown> = {
+      action: 'generate',
       prompt: String(prompt),
     };
 
-    if (notify_hook) duomiBody.notify_hook = String(notify_hook);
-    if (mjState) duomiBody.state = String(mjState);
+    if (notify_hook) wikeBody.callback_url = String(notify_hook);
 
-    const data = await duomiPost('/api/midjourney/submit/imagine', duomiBody);
+    const data = await wikePost('/api/midjourney/imagine/fast', wikeBody);
 
     if (data.code !== 200) {
       return res.status(400).json({
@@ -339,8 +370,7 @@ app.post('/api/mj/imagine', async (req, res) => {
       });
     }
 
-    const taskId = (data.data as Record<string, unknown>)?.task_id as string
-      || (data.data as Record<string, unknown>)?.id as string;
+    const taskId = (data.data as Record<string, unknown>)?.task_id as string;
     res.json({ taskId, model: 'midjourney' });
   } catch (err) {
     console.error('[/api/mj/imagine]', err);
@@ -374,12 +404,18 @@ app.get('/api/mj/task/:taskId', async (req, res) => {
       });
     }
 
-    const taskData = data.data as Record<string, unknown>;
+    // Feed 返回的数据直接是任务数据（不在 data.data 里）
+    const taskData = data.data ? data.data as Record<string, unknown> : data as Record<string, unknown>;
     const status = String(taskData.status);
 
-    // MJ 状态: pending/running/succeeded/error
-    let state = status;
-    if (status === 'error' || status === 'failed') state = 'failed';
+    // MJ 状态码: 0=已提交, 1=执行中, 2=失败, 3=成功
+    const stateMap: Record<string, string> = {
+      '0': 'pending',
+      '1': 'running',
+      '2': 'failed',
+      '3': 'succeeded',
+    };
+    const state = stateMap[status] || 'pending';
 
     let images: string[] = [];
 
@@ -390,15 +426,124 @@ app.get('/api/mj/task/:taskId', async (req, res) => {
       images = (taskData.images as Record<string, unknown>[]).map(img => String(img.url || img));
     }
 
+    // 返回额外信息供前端使用
     res.json({
       state,
       taskId,
       images,
       model: 'midjourney',
       msg: taskData.msg || '',
+      progress: taskData.progress || '',
+      actions: taskData.actions || '',
+      imageId: taskData.image_id || '',
     });
   } catch (err) {
     console.error('[/api/mj/task/:taskId]', err);
+    res.status(500).json({ error: { message: 'Internal server error' } });
+  }
+});
+
+// ──────────────────────────────────────────────
+// POST /api/gpt-image/generate
+// 提交 GPT-Image-2 图片生成任务（异步）
+// ──────────────────────────────────────────────
+app.post('/api/gpt-image/generate', async (req, res) => {
+  const { prompt, size, image, quality } = req.body as Record<string, unknown>;
+
+  if (!prompt) {
+    return res.status(400).json({
+      error: { message: 'prompt is required', type: 'invalid_request_error' }
+    });
+  }
+
+  if (!DUOMI_API_KEY) {
+    return res.status(500).json({
+      error: { message: 'DUOMI_API_KEY not configured', type: 'server_error' }
+    });
+  }
+
+  try {
+    const body: Record<string, unknown> = {
+      model: 'gpt-image-2',
+      prompt: String(prompt),
+    };
+    if (size) body.size = String(size);
+    if (image) body.image = image;           // 字符串或数组
+    if (quality) body.quality = String(quality); // low | medium | high
+
+    const url = `${DUOMI_API_BASE}/v1/images/generations?async=true`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': DUOMI_API_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json() as Record<string, unknown>;
+
+    // gpt-image-2 返回 { id: "xxx" }，没有 code 包装
+    if (!data.id) {
+      return res.status(400).json({
+        error: { message: (data.msg || data.message || '提交失败') as string, type: 'api_error' }
+      });
+    }
+
+    res.json({ taskId: data.id, model: 'gpt-image-2' });
+  } catch (err) {
+    console.error('[/api/gpt-image/generate]', err);
+    res.status(500).json({
+      error: { message: 'Internal server error', type: 'server_error' }
+    });
+  }
+});
+
+// ──────────────────────────────────────────────
+// GET /api/gpt-image/task/:taskId
+// 轮询 GPT-Image-2 异步任务状态
+// ──────────────────────────────────────────────
+app.get('/api/gpt-image/task/:taskId', async (req, res) => {
+  const { taskId } = req.params;
+
+  if (!taskId) {
+    return res.status(400).json({ error: { message: 'taskId required' } });
+  }
+
+  if (!DUOMI_API_KEY) {
+    return res.status(500).json({ error: { message: 'DUOMI_API_KEY not configured' } });
+  }
+
+  try {
+    const url = `${DUOMI_API_BASE}/v1/tasks/${encodeURIComponent(taskId)}`;
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': DUOMI_API_KEY,
+      },
+    });
+    const data = await resp.json() as Record<string, unknown>;
+
+    // gpt-image-2 查询返回: { id, state, data: { images: [{ url, file_name }], description }, progress, ... }
+    // state 枚举: pending | running | succeeded | error
+    const state = (data.state as string) || 'pending';
+    let images: string[] = [];
+
+    if (state === 'succeeded' && data.data) {
+      const innerData = data.data as Record<string, unknown>;
+      if (innerData.images && Array.isArray(innerData.images)) {
+        images = (innerData.images as Record<string, unknown>[]).map(img => String(img.url));
+      }
+    }
+
+    res.json({
+      state,
+      taskId: data.id || taskId,
+      images,
+      model: 'gpt-image-2',
+      progress: data.progress ?? 0,
+    });
+  } catch (err) {
+    console.error('[/api/gpt-image/task/:taskId]', err);
     res.status(500).json({ error: { message: 'Internal server error' } });
   }
 });
@@ -415,7 +560,8 @@ app.post('/api/images/task/:taskId/refresh', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🔗 API Provider: duomiapi.com`);
-  console.log(`🔑 API Key configured: ${DUOMI_API_KEY ? 'YES' : 'NO ⚠️'}`);
-  console.log(`📋 Models: nano-banana, kling-avatar, midjourney`);
+  console.log(`🔗 API Provider: duomiapi.com + api.wike.cc`);
+  console.log(`🔑 Duomi API Key: ${DUOMI_API_KEY ? 'YES' : 'NO ⚠️'}`);
+  console.log(`🔑 Wike  API Key: ${WIKE_API_KEY ? 'YES' : 'NO ⚠️'}`);
+  console.log(`📋 Models: nano-banana, kling-avatar, midjourney, gpt-image-2`);
 });

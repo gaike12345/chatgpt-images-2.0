@@ -88,6 +88,26 @@ const I18N = {
     charCount: '{n} 字符',
     examplePrompts: '示例提示词',
     fillExample: '填入示例',
+    // Phase 3
+    advancedSettings: '高级设置',
+    advancedSettingsOpen: '展开',
+    advancedSettingsClose: '收起',
+    seed: '种子值',
+    seedPlaceholder: '留空则随机',
+    stylePreset: '风格预设',
+    stylePresetNone: '无',
+    stylePresetAnime: '动漫',
+    stylePresetPhotographic: '摄影',
+    stylePresetDigitalArt: '数字艺术',
+    stylePresetCinematic: '电影感',
+    resetDefaults: '恢复默认',
+    // steps
+    stepSubmitting: '提交任务',
+    stepProcessing: 'AI生成中',
+    stepFetching: '获取结果',
+    stepComplete: '生成完成',
+    // progress
+    progressStep: '步骤 {n}/4：{step}',
   },
   en: {
     appName: 'Gaike Moments - AI Image Generator',
@@ -170,6 +190,26 @@ const I18N = {
     charCount: '{n} chars',
     examplePrompts: 'Example Prompts',
     fillExample: 'Fill Example',
+    // Phase 3
+    advancedSettings: 'Advanced Settings',
+    advancedSettingsOpen: 'Expand',
+    advancedSettingsClose: 'Collapse',
+    seed: 'Seed',
+    seedPlaceholder: 'Leave empty for random',
+    stylePreset: 'Style Preset',
+    stylePresetNone: 'None',
+    stylePresetAnime: 'Anime',
+    stylePresetPhotographic: 'Photographic',
+    stylePresetDigitalArt: 'Digital Art',
+    stylePresetCinematic: 'Cinematic',
+    resetDefaults: 'Reset Defaults',
+    // steps
+    stepSubmitting: 'Submitting',
+    stepProcessing: 'AI Generating',
+    stepFetching: 'Fetching Results',
+    stepComplete: 'Complete',
+    // progress
+    progressStep: 'Step {n}/4: {step}',
   },
 } as const;
 
@@ -244,6 +284,10 @@ interface AppState {
   negativePrompt: string;
   promptTags: string[];
   newTag: string;
+  // Phase 3
+  showAdvanced: boolean;
+  seed: string;
+  stylePreset: string;
 }
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -313,6 +357,10 @@ export default function App() {
     negativePrompt: '',
     promptTags: [],
     newTag: '',
+    // Phase 3
+    showAdvanced: false,
+    seed: '',
+    stylePreset: '',
   });
 
   const t = I18N[s.lang];
@@ -331,6 +379,21 @@ export default function App() {
       if (opt) setS(st => ({ ...st, currentSizeW: opt.displayW, currentSizeH: opt.displayH }));
     }
   }, [s.size, s.customSize]);
+
+  // ─── Reset defaults (Phase 3) ─────────────────────────────────
+  // const handleResetDefaults = () => {
+  //   setS(st => ({
+  //     ...st,
+  //     size: '1080p',
+  //     customSize: '',
+  //     n: 1,
+  //     quality: 'high',
+  //     seed: '',
+  //     stylePreset: '',
+  //     currentSizeW: 1920,
+  //     currentSizeH: 1080,
+  //   }));
+  // };
 
   const clearPoll = () => {
     if (pollTimer.current) { clearTimeout(pollTimer.current); pollTimer.current = null; }
@@ -521,12 +584,22 @@ export default function App() {
       let model: string = s.model;
 
       if (s.model === 'nano-banana') {
-        // Build size param
+        // Build size param - convert label to actual pixels
         let sizeVal = s.size;
         if (s.size === 'custom') {
           const parsed = parseCustomSize(s.customSize);
           if (!parsed) throw new Error(s.lang === 'zh' ? '自定义尺寸格式不正确，示例：1920×1080' : 'Invalid custom size format, e.g. 1920×1080');
           sizeVal = `${parsed[0]}×${parsed[1]}`;
+        } else {
+          // Convert size label to actual pixels (e.g., "4K" -> "4096×2304")
+          const sizeMap: Record<string, string> = {
+            '1K': '1024×576',
+            '2K': '2048×1152',
+            '4K': '4096×2304',
+            '1080p': '1920×1080',
+            '720p': '1280×720',
+          };
+          if (sizeMap[s.size]) sizeVal = sizeMap[s.size];
         }
 
         const body: Record<string, unknown> = {
