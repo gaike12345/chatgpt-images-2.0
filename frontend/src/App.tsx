@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import WorkflowCanvas from './WorkflowCanvas';
 
 // ─── API Config ────────────────────────────────────────────
 const DEFAULT_API_URL = 'https://chatgpt-images-api-production.up.railway.app';
@@ -63,6 +64,7 @@ const I18N = {
     lightboxNext: '下一张',
     // model names
     modelNanoBanana: 'Nano-Banana 模型',
+    modelGptImage2: 'GPT-Image-2',
     modelKlingAvatar: '可灵数字人',
     modelMidjourney: 'Midjourney',
     // kling
@@ -108,6 +110,13 @@ const I18N = {
     stepComplete: '生成完成',
     // progress
     progressStep: '步骤 {n}/4：{step}',
+    // multi-angle
+    multiAngle: '多机位生成',
+    multiAngleTip: '一键生成多个角度/景别',
+    grid9: '9宫格 (3×3)',
+    grid25: '25宫格 (5×5)',
+    generatingMulti: '正在生成 {n}/{total}...',
+    multiAngleComplete: '多机位生成完成',
   },
   en: {
     appName: 'Gaike Moments - AI Image Generator',
@@ -165,6 +174,7 @@ const I18N = {
     lightboxNext: 'Next',
     // model names
     modelNanoBanana: 'Nano-Banana Model',
+    modelGptImage2: 'GPT-Image-2',
     modelKlingAvatar: 'Kling Avatar',
     modelMidjourney: 'Midjourney',
     // kling
@@ -210,11 +220,18 @@ const I18N = {
     stepComplete: 'Complete',
     // progress
     progressStep: 'Step {n}/4: {step}',
+    // multi-angle
+    multiAngle: 'Multi-Angle',
+    multiAngleTip: 'Generate multiple angles/shots',
+    grid9: '9 Grid (3×3)',
+    grid25: '25 Grid (5×5)',
+    generatingMulti: 'Generating {n}/{total}...',
+    multiAngleComplete: 'Multi-angle complete',
   },
 } as const;
 
 // ─── Types ─────────────────────────────────────────────────
-type ModelId = 'nano-banana' | 'kling-avatar' | 'midjourney';
+type ModelId = 'nano-banana' | 'kling-avatar' | 'midjourney' | 'gpt-image-2';
 type GenerateState = 'idle' | 'submitting' | 'polling' | 'completed' | 'error';
 
 interface SizeOption { label: string; labelEn: string; value: string; displayW: number; displayH: number; }
@@ -232,6 +249,7 @@ const QUALITIES = ['standard', 'high', 'ultra'] as const;
 
 const MODELS: { id: ModelId; icon: string }[] = [
   { id: 'nano-banana', icon: '🎨' },
+  { id: 'gpt-image-2', icon: '🖼️' },
   { id: 'kling-avatar', icon: '🎬' },
   { id: 'midjourney', icon: '✨' },
 ];
@@ -288,6 +306,15 @@ interface AppState {
   showAdvanced: boolean;
   seed: string;
   stylePreset: string;
+  // Workflow canvas
+  canvasZoom: number;
+  canvasPanX: number;
+  canvasPanY: number;
+  // Multi-angle generation
+  multiAngleMode: boolean;
+  multiAngleGrid: 9 | 25;
+  multiAngleImages: string[]; // 9 or 25 images
+  multiAngleProgress: number; // 0-9 or 0-25
 }
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -361,6 +388,15 @@ export default function App() {
     showAdvanced: false,
     seed: '',
     stylePreset: '',
+    // Workflow canvas
+    canvasZoom: 1,
+    canvasPanX: 0,
+    canvasPanY: 0,
+    // Multi-angle generation
+    multiAngleMode: false,
+    multiAngleGrid: 9,
+    multiAngleImages: [],
+    multiAngleProgress: 0,
   });
 
   const t = I18N[s.lang];
@@ -553,6 +589,32 @@ export default function App() {
     }
   };
 
+  const pollGptImage2 = async (taskId: string) => {
+    try {
+      const resp = await fetch(`${s.apiUrl}/api/gpt-image/task/${taskId}`);
+      const data = await resp.json() as Record<string, unknown>;
+      if (!resp.ok) throw new Error((data as any)?.error?.message || 'Query failed');
+
+      const state = data.state as string;
+      if (state === 'succeeded') {
+        const imgs = (data.images as string[]) || [];
+        addHistory({ prompt: s.prompt, model: s.model, mode: s.mode, size: s.size, customSize: s.customSize, quality: s.quality, n: s.n, images: imgs, videos: [], sizeW: 1024, sizeH: 1024 });
+        setS(st => ({ ...st, genState: 'completed', images: imgs, progress: '' }));
+        clearPoll();
+      } else if (state === 'error') {
+        throw new Error((data as any)?.error?.message || 'Generation failed');
+      } else {
+        pollCount.current += 1;
+        if (pollCount.current >= 60) throw new Error('Generation timeout, please try again');
+        setS(st => ({ ...st, progress: `${t.generating} (${pollCount.current * 3}s)` }));
+        pollTimer.current = setTimeout(() => pollGptImage2(taskId), 3000);
+      }
+    } catch (err) {
+      setS(st => ({ ...st, genState: 'error', errorMsg: err instanceof Error ? err.message : String(err), progress: '' }));
+      clearPoll();
+    }
+  };
+
   // ─── Generate ────────────────────────────────────────────
   // Build full prompt with tags and negative prompt
   const buildFullPrompt = () => {
@@ -560,6 +622,40 @@ export default function App() {
     if (s.promptTags.length > 0) full += ', ' + s.promptTags.join(', ');
     if (s.negativePrompt.trim()) full += ', --negative ' + s.negativePrompt.trim();
     return full;
+  };
+
+  // ─── Multi-Angle Generation ─────────────────────────────
+  // Shot types (景别)
+  const SHOT_TYPES = ['close-up', 'medium shot', 'full shot'] as const;
+  // Angles (角度)
+  const ANGLES = ['front view', 'side view', 'back view'] as const;
+
+  // Generate prompt variants for multi-angle
+  const generateMultiAnglePrompts = (basePrompt: string, grid: 9 | 25): string[] => {
+    const prompts: string[] = [];
+    if (grid === 9) {
+      // 3×3: 3 shot types × 3 angles
+      for (const shot of SHOT_TYPES) {
+        for (const angle of ANGLES) {
+          prompts.push(`${basePrompt}, ${shot}, ${angle}, cinematic composition`);
+        }
+      }
+    } else {
+      // 5×5: more variations
+      const extraAngles = ['low angle', 'high angle', 'dutch angle'];
+      const allAngles = [...ANGLES, ...extraAngles];
+      for (const shot of SHOT_TYPES) {
+        for (const angle of allAngles) {
+          prompts.push(`${basePrompt}, ${shot}, ${angle}, cinematic composition`);
+        }
+      }
+      // Add 10 more variations with different lighting
+      const lighting = ['dramatic lighting', 'soft lighting', 'backlit', 'golden hour', 'neon lights'];
+      for (let i = 0; i < 10; i++) {
+        prompts.push(`${basePrompt}, ${SHOT_TYPES[i % 3]}, ${lighting[i % 5]}, cinematic composition`);
+      }
+    }
+    return prompts;
   };
 
   const handleGenerate = async () => {
@@ -578,6 +674,108 @@ export default function App() {
 
     pollCount.current = 0;
     setS(st => ({ ...st, genState: 'submitting', images: [], videos: [], errorMsg: '', progress: t.submitting, taskId: '' }));
+
+    // Multi-angle mode: generate multiple prompts and call API in parallel
+    if (s.multiAngleMode && s.mode === 'text') {
+      try {
+        const prompts = generateMultiAnglePrompts(buildFullPrompt(), s.multiAngleGrid);
+        const total = prompts.length;
+        const results: string[] = [];
+
+        setS(st => ({ ...st, multiAngleImages: [], multiAngleProgress: 0, progress: t.generatingMulti.replace('{n}', '0').replace('{total}', String(total)) }));
+
+        // Generate images sequentially (to avoid API rate limits)
+        for (let i = 0; i < prompts.length; i++) {
+          const prompt = prompts[i];
+          setS(st => ({ ...st, progress: t.generatingMulti.replace('{n}', String(i + 1)).replace('{total}', String(total)) }));
+
+          // Call appropriate API based on model
+          let imageUrl = '';
+
+          if (s.model === 'nano-banana' || s.model === 'gpt-image-2') {
+            // Build size param
+            let sizeVal = s.size;
+            if (s.size === 'custom') {
+              const parsed = parseCustomSize(s.customSize);
+              if (parsed) sizeVal = `${parsed[0]}×${parsed[1]}`;
+            } else {
+              const sizeMap: Record<string, string> = {
+                '1K': '1024×576', '2K': '2048×1152', '4K': '4096×2304',
+                '1080p': '1920×1080', '720p': '1280×720',
+              };
+              if (sizeMap[s.size]) sizeVal = sizeMap[s.size];
+            }
+
+            const endpoint = s.model === 'gpt-image-2' ? '/api/gpt-image/generate' : '/api/images/generate';
+            const body: Record<string, unknown> = {
+              prompt,
+              size: sizeVal,
+              quality: s.quality,
+              ...(s.model === 'nano-banana' ? { model: 'gemini-3.1-flash-image-preview', n: 1 } : {})
+            };
+
+            const resp = await fetch(`${s.apiUrl}${endpoint}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(body),
+            });
+            const data = await resp.json() as Record<string, unknown>;
+            if (!resp.ok) throw new Error((data as any)?.error?.message || 'Submit failed');
+
+            const taskId = (data as any).taskId as string;
+
+            // Poll for result
+            const pollEndpoint = s.model === 'gpt-image-2' ? `/api/gpt-image/task/${taskId}` : `/api/images/task/${taskId}`;
+            for (let attempt = 0; attempt < 60; attempt++) {
+              await new Promise(r => setTimeout(r, 3000));
+              const pollResp = await fetch(`${s.apiUrl}${pollEndpoint}`);
+              const pollData = await pollResp.json() as Record<string, unknown>;
+              const state = (pollData as any).state as string;
+              if (state === 'succeeded') {
+                const images = (pollData as any).images as string[];
+                if (images && images.length > 0) imageUrl = images[0];
+                break;
+              } else if (state === 'error' || state === 'failed') {
+                throw new Error('Generation failed');
+              }
+            }
+          } else if (s.model === 'midjourney') {
+            const resp = await fetch(`${s.apiUrl}/api/mj/imagine`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ prompt }),
+            });
+            const data = await resp.json() as Record<string, unknown>;
+            if (!resp.ok) throw new Error((data as any)?.error?.message || 'Submit failed');
+
+            const taskId = (data as any).taskId as string;
+
+            // Poll for MJ result
+            for (let attempt = 0; attempt < 60; attempt++) {
+              await new Promise(r => setTimeout(r, 5000));
+              const pollResp = await fetch(`${s.apiUrl}/api/mj/feed?task_id=${taskId}`);
+              const pollData = await pollResp.json() as Record<string, unknown>;
+              const status = (pollData as any).status as number;
+              if (status === 3) {
+                imageUrl = (pollData as any).image_url as string;
+                break;
+              } else if (status === 2) {
+                throw new Error('MJ generation failed');
+              }
+            }
+          }
+
+          if (imageUrl) results.push(imageUrl);
+          setS(st => ({ ...st, multiAngleProgress: i + 1, multiAngleImages: [...results] }));
+        }
+
+        setS(st => ({ ...st, genState: 'completed', progress: '' }));
+        return;
+      } catch (err) {
+        setS(st => ({ ...st, genState: 'error', errorMsg: err instanceof Error ? err.message : String(err), progress: '' }));
+        return;
+      }
+    }
 
     try {
       let taskId = '';
@@ -651,6 +849,40 @@ export default function App() {
         if (!resp.ok) throw new Error((data as any)?.error?.message || 'Submit failed');
         taskId = (data as any).taskId as string;
         model = 'midjourney';
+      } else if (s.model === 'gpt-image-2') {
+        // Build size param for gpt-image-2
+        let sizeVal = s.size;
+        if (s.size === 'custom') {
+          const parsed = parseCustomSize(s.customSize);
+          if (!parsed) throw new Error(s.lang === 'zh' ? '自定义尺寸格式不正确，示例：1920×1080' : 'Invalid custom size format, e.g. 1920×1080');
+          sizeVal = `${parsed[0]}×${parsed[1]}`;
+        } else {
+          const sizeMap: Record<string, string> = {
+            '1K': '1024×576',
+            '2K': '2048×1152',
+            '4K': '4096×2304',
+            '1080p': '1920×1080',
+            '720p': '1280×720',
+          };
+          if (sizeMap[s.size]) sizeVal = sizeMap[s.size];
+        }
+
+        const body: Record<string, unknown> = {
+          prompt: buildFullPrompt(),
+          size: sizeVal,
+          quality: s.quality,
+        };
+        if (s.mode === 'edit' && s.refImage) body.image = s.refImage;
+
+        const resp = await fetch(`${s.apiUrl}/api/gpt-image/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await resp.json() as Record<string, unknown>;
+        if (!resp.ok) throw new Error((data as any)?.error?.message || 'Submit failed');
+        taskId = (data as any).taskId as string;
+        model = 'gpt-image-2';
       }
 
       if (!taskId) throw new Error('No task ID returned');
@@ -663,6 +895,8 @@ export default function App() {
         pollTimer.current = setTimeout(() => pollKlingAvatar(taskId), 5000);
       } else if (model === 'midjourney') {
         pollTimer.current = setTimeout(() => pollMidjourney(taskId), 5000);
+      } else if (model === 'gpt-image-2') {
+        pollTimer.current = setTimeout(() => pollGptImage2(taskId), 3000);
       }
     } catch (err) {
       setS(st => ({ ...st, genState: 'error', errorMsg: err instanceof Error ? err.message : String(err), progress: '' }));
@@ -679,6 +913,75 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
+  // Handle generate triggered from WorkflowCanvas (prompt-only, ignores current form state)
+  const handleCanvasGenerate = async (prompt: string) => {
+    if (!prompt.trim()) return;
+    pollCount.current = 0;
+    setS(st => ({
+      ...st,
+      prompt,
+      genState: 'submitting',
+      images: [],
+      videos: [],
+      errorMsg: '',
+      progress: t.submitting,
+      taskId: '',
+    }));
+    try {
+      let sizeVal = s.size;
+      if (s.size === 'custom') {
+        const parsed = parseCustomSize(s.customSize);
+        if (parsed) sizeVal = `${parsed[0]}×${parsed[1]}`;
+      } else {
+        const sizeMap: Record<string, string> = {
+          '1K': '1024×576', '2K': '2048×1152', '4K': '4096×2304',
+          '1080p': '1920×1080', '720p': '1280×720',
+        };
+        if (sizeMap[s.size]) sizeVal = sizeMap[s.size];
+      }
+
+      const endpoint = s.model === 'gpt-image-2' ? '/api/gpt-image/generate' : '/api/images/generate';
+      const body: Record<string, unknown> = {
+        prompt,
+        size: sizeVal,
+        quality: s.quality,
+        ...(s.model === 'nano-banana' ? { model: 'gemini-3.1-flash-image-preview', n: 1 } : {})
+      };
+
+      const resp = await fetch(`${s.apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await resp.json() as Record<string, unknown>;
+      if (!resp.ok) throw new Error((data as any)?.error?.message || 'Submit failed');
+
+      const taskId = (data as any).taskId as string;
+      setS(st => ({ ...st, taskId, genState: 'polling', progress: t.generating }));
+
+      const pollEndpoint = s.model === 'gpt-image-2' ? `/api/gpt-image/task/${taskId}` : `/api/images/task/${taskId}`;
+      for (let attempt = 0; attempt < 60; attempt++) {
+        await new Promise(r => setTimeout(r, 3000));
+        const pollResp = await fetch(`${s.apiUrl}${pollEndpoint}`);
+        const pollData = await pollResp.json() as Record<string, unknown>;
+        const state = (pollData as any).state as string;
+        if (state === 'succeeded') {
+          const images = (pollData as any).images as string[];
+          if (images && images.length > 0) {
+            setS(st => ({ ...st, images, genState: 'completed', progress: '' }));
+            addHistory({ prompt, model: s.model, mode: s.mode, size: s.size, customSize: s.customSize, quality: s.quality, n: 1, images, videos: [], sizeW: 1024, sizeH: 1024 });
+          }
+          return;
+        } else if (state === 'error' || state === 'failed') {
+          throw new Error('Generation failed');
+        }
+        setS(st => ({ ...st, progress: `${t.generating} ${Math.round((attempt / 60) * 100)}%` }));
+      }
+    } catch (err) {
+      setS(st => ({ ...st, genState: 'error', errorMsg: err instanceof Error ? err.message : String(err), progress: '' }));
+    }
+  };
+
   const handleCancel = () => { clearPoll(); setS(st => ({ ...st, genState: 'idle', progress: '', taskId: '' })); };
 
   const isWorking = s.genState === 'submitting' || s.genState === 'polling';
@@ -687,6 +990,7 @@ export default function App() {
   // Model display name
   const getModelName = (id: ModelId) => {
     if (id === 'nano-banana') return t.modelNanoBanana;
+    if (id === 'gpt-image-2') return t.modelGptImage2;
     if (id === 'kling-avatar') return t.modelKlingAvatar;
     return t.modelMidjourney;
   };
@@ -770,6 +1074,9 @@ export default function App() {
                   'nano-banana': s.lang === 'zh'
                     ? '一只穿着宇航服的橘猫在月球表面玩耍，背景是地球'
                     : 'An orange cat in astronaut suit playing on the moon surface, Earth in background',
+                  'gpt-image-2': s.lang === 'zh'
+                    ? '一座漂浮在云端的未来城市，霓虹灯光，赛博朋克风格'
+                    : 'A futuristic city floating in clouds, neon lights, cyberpunk style',
                   'kling-avatar': s.lang === 'zh'
                     ? '欢迎来到盖可朋友圈，分享你的精彩瞬间'
                     : 'Welcome to Gaike Moments, share your wonderful moments',
@@ -790,7 +1097,7 @@ export default function App() {
           </div>
 
           {/* Mode selector (only for nano-banana) */}
-          {s.model === 'nano-banana' && (
+          {(s.model === 'nano-banana' || s.model === 'gpt-image-2') && (
             <div>
               <label style={{ fontSize: 12, color: '#8b909e', marginBottom: 8, display: 'block' }}>{t.mode}</label>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -970,8 +1277,8 @@ export default function App() {
             </>
           )}
 
-          {/* Size (only for nano-banana) */}
-          {s.model === 'nano-banana' && (
+          {/* Size (for nano-banana and gpt-image-2) */}
+          {(s.model === 'nano-banana' || s.model === 'gpt-image-2') && (
             <div>
               <label style={{ fontSize: 12, color: '#8b909e', marginBottom: 8, display: 'block' }}>{t.size}</label>
               <select
@@ -1008,8 +1315,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Quality (only for nano-banana) */}
-          {s.model === 'nano-banana' && (
+          {/* Quality (for nano-banana and gpt-image-2) */}
+          {(s.model === 'nano-banana' || s.model === 'gpt-image-2') && (
             <div>
               <label style={{ fontSize: 12, color: '#8b909e', marginBottom: 8, display: 'block' }}>{t.quality}</label>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -1027,8 +1334,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Number (only for nano-banana) */}
-          {s.model === 'nano-banana' && (
+          {/* Number (for nano-banana and gpt-image-2) */}
+          {(s.model === 'nano-banana' || s.model === 'gpt-image-2') && (
             <div>
               <label style={{ fontSize: 12, color: '#8b909e', marginBottom: 8, display: 'block' }}>{t.number}: {s.n}</label>
               <input type="range" min={1} max={10} value={s.n}
@@ -1038,6 +1345,67 @@ export default function App() {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#4a4f5e', marginTop: 4 }}>
                 <span>1</span><span>10</span>
               </div>
+            </div>
+          )}
+
+          {/* Multi-Angle Mode */}
+          {(s.model === 'nano-banana' || s.model === 'gpt-image-2' || s.model === 'midjourney') && s.mode === 'text' && (
+            <div style={{ background: '#1a1d2e', borderRadius: 8, padding: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ fontSize: 12, color: '#8b909e' }}>🎬 {t.multiAngle}</label>
+                <button
+                  onClick={() => setS(st => ({ ...st, multiAngleMode: !st.multiAngleMode }))}
+                  disabled={isWorking}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: 6,
+                    border: '1px solid ' + (s.multiAngleMode ? '#7b68ee' : '#33373f'),
+                    background: s.multiAngleMode ? '#7b68ee' : 'transparent',
+                    color: s.multiAngleMode ? '#fff' : '#8b909e',
+                    fontSize: 11,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {s.multiAngleMode ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              {s.multiAngleMode && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 11, color: '#6b7080', marginBottom: 6 }}>{t.multiAngleTip}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => setS(st => ({ ...st, multiAngleGrid: 9 }))}
+                      style={{
+                        flex: 1,
+                        padding: '6px 0',
+                        borderRadius: 6,
+                        border: '1px solid ' + (s.multiAngleGrid === 9 ? '#7b68ee' : '#33373f'),
+                        background: s.multiAngleGrid === 9 ? '#2a2760' : 'transparent',
+                        color: s.multiAngleGrid === 9 ? '#b8afe0' : '#8b909e',
+                        fontSize: 11,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {t.grid9}
+                    </button>
+                    <button
+                      onClick={() => setS(st => ({ ...st, multiAngleGrid: 25 }))}
+                      style={{
+                        flex: 1,
+                        padding: '6px 0',
+                        borderRadius: 6,
+                        border: '1px solid ' + (s.multiAngleGrid === 25 ? '#7b68ee' : '#33373f'),
+                        background: s.multiAngleGrid === 25 ? '#2a2760' : 'transparent',
+                        color: s.multiAngleGrid === 25 ? '#b8afe0' : '#8b909e',
+                        fontSize: 11,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {t.grid25}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1144,6 +1512,26 @@ export default function App() {
           {/* Content area (only show when not browsing history) */}
           {!s.showHistory && (
             <>
+              {/* Workflow Canvas for edit mode */}
+              {s.mode === 'edit' && (s.model === 'nano-banana' || s.model === 'midjourney') && (
+                <WorkflowCanvas
+                  zoom={s.canvasZoom}
+                  panX={s.canvasPanX}
+                  panY={s.canvasPanY}
+                  onZoomChange={(z) => setS(st => ({ ...st, canvasZoom: z }))}
+                  onPanChange={(x, y) => setS(st => ({ ...st, canvasPanX: x, canvasPanY: y }))}
+                  refImage={s.refImage}
+                  onImageUpload={handleImageUpload}
+                  onImageGenerate={(prompt) => handleCanvasGenerate(prompt)}
+                  lang={s.lang}
+                  isGenerating={s.genState === 'submitting' || s.genState === 'polling'}
+                  apiUrl={s.apiUrl}
+                />
+              )}
+
+              {/* Hide normal content when in edit mode with canvas */}
+              {!(s.mode === 'edit' && (s.model === 'nano-banana' || s.model === 'midjourney')) && (
+                <>
               {/* Idle */}
               {s.genState === 'idle' && s.images.length === 0 && s.videos.length === 0 && (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#4a4f5e', gap: 12 }}>
@@ -1232,6 +1620,98 @@ export default function App() {
                 </div>
               )}
 
+              {/* Multi-Angle Results */}
+              {s.multiAngleImages.length > 0 && (
+                <div style={{ marginTop: s.images.length > 0 || s.videos.length > 0 ? 24 : 0 }}>
+                  <div style={{ fontSize: 14, color: '#b8afe0', marginBottom: 16, fontWeight: 500 }}>
+                    🎬 {t.multiAngleComplete} ({s.multiAngleImages.length} {s.lang === 'zh' ? '张' : 'images'})
+                  </div>
+                  {/* 3x3 or 5x5 grid */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${s.multiAngleGrid === 9 ? 3 : 5}, 1fr)`,
+                    gap: 8,
+                    marginBottom: 16
+                  }}>
+                    {s.multiAngleImages.map((url, i) => {
+                      const gridSize = s.multiAngleGrid;
+                      const shotIdx = gridSize === 9 ? Math.floor(i / 3) : Math.floor(i / 5);
+                      const angleIdx = gridSize === 9 ? i % 3 : i % 5;
+                      const shotNames = s.lang === 'zh' ? ['特写', '中景', '全景'] : ['Close-up', 'Medium', 'Full'];
+                      const angleNames = gridSize === 9
+                        ? (s.lang === 'zh' ? ['正面', '侧面', '背面'] : ['Front', 'Side', 'Back'])
+                        : (s.lang === 'zh' ? ['正面', '侧面', '背面', '仰视', '俯视'] : ['Front', 'Side', 'Back', 'Low', 'High']);
+                      return (
+                        <div key={`ma-${i}`}
+                          style={{
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            border: '1px solid #33373f',
+                            background: '#1c1e22',
+                            position: 'relative'
+                          }}
+                        >
+                          <img
+                            src={url}
+                            alt={`multi-${i + 1}`}
+                            style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                            onClick={() => openLightbox(s.multiAngleImages, i)}
+                          />
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
+                            padding: '16px 6px 4px',
+                            fontSize: 10,
+                            color: '#e4e6eb'
+                          }}>
+                            {shotNames[shotIdx % 3]} · {angleNames[angleIdx]}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Download all button */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        s.multiAngleImages.forEach((url, i) => {
+                          setTimeout(() => downloadImage(url, `multi-angle-${i + 1}.png`), i * 200);
+                        });
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        border: 'none',
+                        background: 'linear-gradient(135deg,#7b68ee,#5b8cf8)',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500
+                      }}
+                    >
+                      ⬇ {s.lang === 'zh' ? '下载全部' : 'Download All'}
+                    </button>
+                    <button
+                      onClick={() => setS(st => ({ ...st, multiAngleImages: [], multiAngleProgress: 0 }))}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        border: '1px solid #33373f',
+                        background: 'transparent',
+                        color: '#8b909e',
+                        cursor: 'pointer',
+                        fontSize: 13
+                      }}
+                    >
+                      🗑️ {s.lang === 'zh' ? '清空' : 'Clear'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {(s.images.length > 0 || s.videos.length > 0) && (
                 <div style={{ marginTop: 24, padding: '14px 16px', background: '#1c1e22', borderRadius: 10, border: '1px solid #33373f', fontSize: 13, color: '#8b909e', lineHeight: 1.8 }}>
                   <strong style={{ color: '#e4e6eb' }}>{t.downloadTip}</strong><br />
@@ -1262,6 +1742,8 @@ export default function App() {
                     {t.retry}
                   </button>
                 </div>
+              )}
+                </>
               )}
             </>
           )}

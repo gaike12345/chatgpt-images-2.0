@@ -1,79 +1,194 @@
-# ChatGPT Images 2.0
+# 环境配置和使用指南
 
-基于 OpenAI GPT Image 2 API 的图像生成应用。
+## 🎯 问题说明
 
-## 架构
+当前 AI 助手环境无法直接执行 `npm`、`git` 等命令，这是正常的沙箱限制。
 
-```
-前端 (Vercel) → 后端 (Railway) → OpenAI API (gpt-image-2)
-   React+TS      Express+TS       Images Generation
-```
+## ✅ 解决方案
 
-## 快速开始
+### 方法1：一键部署（推荐）✅
 
-### 后端
+**步骤：**
 
-```bash
-cd backend
-cp .env.example .env
-# 编辑 .env 填入你的 OPENAI_API_KEY
+1. **安装必要的工具**（如果还没有）
+   - 右键点击 `install-tools.ps1`
+   - 选择 "使用 PowerShell 运行"
+   - 等待安装完成
+
+2. **执行一键部署**
+   - 右键点击 `deploy-all.ps1`
+   - 选择 "使用 PowerShell 运行"
+   - 等待部署完成
+
+### 方法2：手动部署
+
+#### 前端部署到 Vercel
+
+```powershell
+# 1. 进入前端目录
+cd "c:\Users\Windows\Desktop\chatgpt-images-2.0\frontend"
+
+# 2. 安装依赖
 npm install
-npm run dev
-# 服务运行在 http://localhost:3001
+
+# 3. 构建项目
+npm run build
+
+# 4. 部署到 Vercel（如果没有 Vercel CLI，跳过此步）
+vercel --prod
 ```
 
-### 前端
+#### 后端部署到 Railway
 
-```bash
+```powershell
+# 1. 进入后端目录
+cd "c:\Users\Windows\Desktop\chatgpt-images-2.0\backend"
+
+# 2. 使用 Railway CLI 部署
+railway up --detach
+```
+
+### 方法3：使用 GitHub Actions 自动部署（推荐给持续集成）
+
+需要我创建一个完整的 GitHub Actions 工作流吗？
+
+## 🔧 手动安装工具
+
+如果你想手动安装：
+
+### 1. Node.js (必需)
+- 下载地址: https://nodejs.org/
+- 推荐版本: Node.js 20 LTS
+- 安装后打开新的命令提示符窗口
+
+### 2. Git (推荐)
+- 下载地址: https://git-scm.com/download/win
+- 安装时选择 "Use Git from Windows Command Prompt"
+
+### 3. Railway CLI (后端部署)
+```powershell
+npm install -g @railway/cli
+```
+
+### 4. Vercel CLI (前端部署)
+```powershell
+npm install -g vercel
+```
+
+## 📋 部署后配置
+
+### 1. 设置 Railway 环境变量
+
+登录 https://railway.app，找到你的项目，添加：
+
+```
+DUOMI_API_KEY = 你的多米API密钥
+WIKE_API_KEY = 你的Wike API密钥（可选，Midjourney用）
+```
+
+### 2. 获取 Railway URL
+
+部署成功后，Railway 会分配一个 URL，类似：
+```
+https://chatgpt-images-api.up.railway.app
+```
+
+### 3. 更新前端配置
+
+编辑 `frontend/.env.production`:
+
+```
+VITE_API_URL=https://你的-railway-app.up.railway.app
+```
+
+### 4. 重新部署前端
+
+```powershell
 cd frontend
-npm install
-npm run dev
-# 运行在 http://localhost:5173
+vercel --prod
 ```
 
-## 部署
+## 🧪 测试部署
 
-### Railway（后端）
+部署完成后访问：
 
-1. 连接 GitHub 仓库
-2. 设置环境变量：
-   - `OPENAI_API_KEY` = 你的 OpenAI API Key
-   - `PORT` = `3001`
-3. Root Directory: `backend`
-4. Deploy
+1. **前端地址**: Vercel 分配的 URL
+2. **后端健康检查**: `https://你的-railway-app.up.railway.app/api/health`
 
-### Vercel（前端）
+## ❓ 常见问题
 
-1. 导入 GitHub 仓库
-2. Root Directory: `frontend`
-3. 环境变量：`VITE_API_URL` = 你的 Railway 后端地址
-4. Deploy
+### Q: PowerShell 脚本无法运行？
 
-## API 接口
+**A:** 可能需要调整执行策略
 
-### POST /api/images/generate
+```powershell
+# 查看当前策略
+Get-ExecutionPolicy
 
-请求体：
+# 临时允许运行脚本（当前窗口）
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
-```json
-{
-  "prompt": "一只可爱的猫咪",
-  "size": "1024x1024",
-  "n": 1,
-  "quality": "medium"
-}
+# 永久允许（需要管理员权限）
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-参数说明：
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| prompt | string | ✅ | 图像描述提示词 |
-| size | string | ❌ | 尺寸，默认 `1024x1024` |
-| n | number | ❌ | 数量 1-10，默认 1 |
-| quality | string | ❌ | 质量 low/medium/high，默认 medium |
+### Q: npm 命令找不到？
 
-## 技术栈
+**A:** 
+1. 确保 Node.js 已正确安装
+2. 关闭并重新打开 PowerShell/命令提示符
+3. 检查 PATH 环境变量
 
-- **前端**: React 19 + Vite + TypeScript + Tailwind CSS v4
-- **后端**: Express + TypeScript + Node.js 20
-- **API**: OpenAI Images API (gpt-image-2)
+### Q: Railway 部署失败？
+
+**A:**
+1. 确保已登录 Railway CLI: `railway login`
+2. 检查项目 ID 是否正确
+3. 查看错误日志
+
+### Q: Vercel 部署失败？
+
+**A:**
+1. 确保已登录 Vercel CLI: `vercel login`
+2. 检查网络连接
+3. 查看 Vercel 控制台日志
+
+## 📞 获取帮助
+
+如果遇到问题：
+
+1. 检查错误日志
+2. 查看官方文档：
+   - Vercel: https://vercel.com/docs
+   - Railway: https://docs.railway.app
+   - Node.js: https://nodejs.org/docs
+
+2. 检查 AI 助手创建的详细日志：
+   - `frontend/` - npm 和 Vercel 相关
+   - `backend/` - Railway 相关
+
+## 🎉 成功标志
+
+部署成功后，你应该能看到：
+
+1. ✅ Vercel 返回部署 URL
+2. ✅ Railway 显示 "Service is running"
+3. ✅ `https://你的-railway-app.up.railway.app/api/health` 返回 `{"status": "ok"}`
+4. ✅ 前端页面正常显示
+5. ✅ 可以成功调用图片生成 API
+
+## 💡 小贴士
+
+1. **持续部署**: 可以配置 GitHub Actions，每次 push 代码自动部署
+2. **环境隔离**: 使用 `.env.production` 和 `.env.development` 区分生产/开发环境
+3. **监控**: 在 Railway 开启监控和日志
+4. **备份**: 定期备份重要配置文件
+
+---
+
+需要我帮你：
+1. 创建 GitHub Actions 自动部署工作流？
+2. 配置更详细的日志记录？
+3. 编写测试脚本验证部署？
+
+随时告诉我！
