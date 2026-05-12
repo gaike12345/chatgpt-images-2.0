@@ -47,51 +47,11 @@ interface NodeDef {
 }
 
 const NODE_DEFS: NodeDef[] = [
-  { 
-    type: 'txt2img', 
-    label: 'Text → Image', 
-    labelZh: '文生图', 
-    icon: '🎨', 
-    color: '#8b5cf6',
-    description: 'Generate image from text prompt',
-    descriptionZh: '根据文字描述生成图片'
-  },
-  { 
-    type: 'img2img', 
-    label: 'Image → Image', 
-    labelZh: '图生图', 
-    icon: '🖼️', 
-    color: '#f59e0b',
-    description: 'Edit and transform images',
-    descriptionZh: '编辑和转换已有图片'
-  },
-  { 
-    type: 'upscale', 
-    label: 'Upscale', 
-    labelZh: '图片放大', 
-    icon: '📈', 
-    color: '#10b981',
-    description: 'Increase image resolution',
-    descriptionZh: '提高图片分辨率'
-  },
-  { 
-    type: 'inpaint', 
-    label: 'Inpaint', 
-    labelZh: '局部重绘', 
-    icon: '🎯', 
-    color: '#ec4899',
-    description: 'Edit specific areas',
-    descriptionZh: '编辑图片特定区域'
-  },
-  { 
-    type: 'outpaint', 
-    label: 'Outpaint', 
-    labelZh: '图片扩展', 
-    icon: '🌅', 
-    color: '#06b6d4',
-    description: 'Extend image boundaries',
-    descriptionZh: '扩展图片边界'
-  },
+  { type: 'txt2img', label: 'Text \u2192 Image', labelZh: '\u6587\u751f\u56fe', icon: '\ud83c\udfa8', color: '#8b5cf6', description: 'Generate image from text prompt', descriptionZh: '\u6839\u636e\u6587\u5b57\u63cf\u8ff0\u751f\u6210\u56fe\u7247' },
+  { type: 'img2img', label: 'Image \u2192 Image', labelZh: '\u56fe\u751f\u56fe', icon: '\ud83d\uddbc', color: '#f59e0b', description: 'Edit and transform images', descriptionZh: '\u7f16\u8f91\u548c\u8f6c\u6362\u5df2\u6709\u56fe\u7247' },
+  { type: 'upscale', label: 'Upscale', labelZh: '\u56fe\u7247\u653e\u5927', icon: '\ud83d\udcc8', color: '#10b981', description: 'Increase image resolution', descriptionZh: '\u63d0\u9ad8\u56fe\u7247\u5206\u8fa8\u7387' },
+  { type: 'inpaint', label: 'Inpaint', labelZh: '\u5c40\u90e8\u91cd\u7ed8', icon: '\ud83c\udfaf', color: '#ec4899', description: 'Edit specific areas', descriptionZh: '\u7f16\u8f91\u56fe\u7247\u7279\u5b9a\u533a\u57df' },
+  { type: 'outpaint', label: 'Outpaint', labelZh: '\u56fe\u7247\u6269\u5c55', icon: '\ud83c\udf05', color: '#06b6d4', description: 'Extend image boundaries', descriptionZh: '\u6269\u5c55\u56fe\u7247\u8fb9\u754c' },
 ];
 
 interface WfNodeData extends Record<string, unknown> {
@@ -107,45 +67,27 @@ interface WfNodeData extends Record<string, unknown> {
   scale: number;
   maskPrompt: string;
   expandDirection: string;
+  lang: Lang;
 }
 
 const SIZES = [
-  { label: '1024×1024', value: '1024×1024' },
-  { label: '1920×1080', value: '1920×1080' },
-  { label: '1080×1920', value: '1080×1920' },
-  { label: '2048×2048', value: '2048×2048' },
-  { label: '4096×4096', value: '4096×4096' },
+  { label: '1024\u00d71024', value: '1024\u00d71024' },
+  { label: '1920\u00d71080', value: '1920\u00d71080' },
+  { label: '1080\u00d71920', value: '1080\u00d71920' },
+  { label: '2048\u00d72048', value: '2048\u00d72048' },
+  { label: '4096\u00d74096', value: '4096\u00d74096' },
 ];
 
-function ImageNode({ 
-  data, 
-  selected, 
-  lang,
-  onGenerate,
-  onEdit,
-  onDelete,
-  onDownload,
-  onCopyPrompt,
-  onRemoveInput,
-  onImageUpload,
-  isGenerating 
-}: { 
-  data: WfNodeData; 
+interface ImageNodeProps {
+  data: WfNodeData;
   selected?: boolean;
-  lang: Lang;
-  onGenerate: (nodeId: string) => void;
-  onEdit: (nodeId: string) => void;
-  onDelete: (nodeId: string) => void;
-  onDownload: (nodeId: string) => void;
-  onCopyPrompt: (nodeId: string) => void;
-  onRemoveInput: (nodeId: string) => void;
-  onImageUpload: (nodeId: string, e: React.ChangeEvent<HTMLInputElement>) => void;
-  isGenerating: boolean;
-}) {
+}
+
+function ImageNode({ data, selected }: ImageNodeProps) {
   const nodeDef = NODE_DEFS.find(d => d.type === data.nodeType) ?? NODE_DEFS[0];
   const hasImage = !!data.imageUrl;
   const hasInputImage = !!data.inputImageUrl;
-  const isZh = lang === 'zh';
+  const isZh = data.lang === 'zh';
   const inputRef = useRef<HTMLInputElement>(null);
 
   const getStatusColor = () => {
@@ -159,407 +101,98 @@ function ImageNode({
 
   const getTypeLabel = () => {
     switch (data.nodeType) {
-      case 'txt2img': return '文生图';
-      case 'img2img': return '图生图';
-      case 'upscale': return '图片放大';
-      case 'inpaint': return '局部重绘';
-      case 'outpaint': return '图片扩展';
+      case 'txt2img': return isZh ? '\u6587\u751f\u56fe' : 'Text\u2192Image';
+      case 'img2img': return isZh ? '\u56fe\u751f\u56fe' : 'Image\u2192Image';
+      case 'upscale': return isZh ? '\u56fe\u7247\u653e\u5927' : 'Upscale';
+      case 'inpaint': return isZh ? '\u5c40\u90e8\u91cd\u7ed8' : 'Inpaint';
+      case 'outpaint': return isZh ? '\u56fe\u7247\u6269\u5c55' : 'Outpaint';
       default: return data.nodeType;
     }
   };
 
-  const getActionLabel = () => {
-    switch (data.nodeType) {
-      case 'txt2img': return isZh ? '生成' : 'Generate';
-      case 'img2img': return isZh ? '编辑' : 'Edit';
-      case 'upscale': return isZh ? '放大' : 'Upscale';
-      case 'inpaint': return isZh ? '重绘' : 'Inpaint';
-      case 'outpaint': return isZh ? '扩展' : 'Outpaint';
-      default: return isZh ? '执行' : 'Execute';
-    }
-  };
-
   return (
-    <div
-      style={{
-        width: 360,
-        background: '#1a1a2e',
-        borderRadius: 12,
-        border: selected ? `2px solid ${nodeDef.color}` : '1px solid #2a2a4a',
-        boxShadow: selected ? `0 0 20px ${nodeDef.color}40` : '0 4px 20px rgba(0,0,0,0.3)',
-        overflow: 'hidden',
-        transition: 'all 0.2s',
-      }}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{
-          width: 14,
-          height: 14,
-          background: '#1a1a2e',
-          border: `2px solid ${nodeDef.color}`,
-          borderRadius: '50%',
-          left: -7,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          cursor: 'crosshair',
-        }}
-      />
+    <div style={{ width: 360, background: '#1a1a2e', borderRadius: 12, border: selected ? `2px solid ${nodeDef.color}` : '1px solid #2a2a4a', boxShadow: selected ? `0 0 20px ${nodeDef.color}40` : '0 4px 20px rgba(0,0,0,0.3)', overflow: 'hidden', transition: 'all 0.2s' }}>
+      <Handle type="target" position={Position.Left} style={{ width: 14, height: 14, background: '#1a1a2e', border: `2px solid ${nodeDef.color}`, borderRadius: '50%', left: -7, top: '50%', transform: 'translateY(-50%)', cursor: 'crosshair' }} />
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 12px',
-        background: '#252542',
-        borderBottom: '1px solid #2a2a4a',
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#252542', borderBottom: '1px solid #2a2a4a' }}>
         <span style={{ fontSize: 14 }}>{nodeDef.icon}</span>
-        <span style={{ fontSize: 13, color: nodeDef.color, fontWeight: 600 }}>
-          {getTypeLabel()}
-        </span>
+        <span style={{ fontSize: 13, color: nodeDef.color, fontWeight: 600 }}>{getTypeLabel()}</span>
         <div style={{ flex: 1 }} />
-        {data.status && (
-          <div style={{
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: getStatusColor(),
-            boxShadow: `0 0 8px ${getStatusColor()}`,
-          }} />
-        )}
-        <button
-          onClick={() => onDelete && onDelete((data as any).id || '')}
-          style={{
-            padding: '4px 8px',
-            fontSize: 11,
-            background: 'transparent',
-            border: 'none',
-            borderRadius: 4,
-            color: '#ef4444',
-            cursor: 'pointer',
-          }}
-          title={isZh ? '删除节点' : 'Delete Node'}
-        >
-          ✕
-        </button>
+        {data.status && <div style={{ width: 8, height: 8, borderRadius: '50%', background: getStatusColor(), boxShadow: `0 0 8px ${getStatusColor()}` }} />}
       </div>
 
-      <div style={{
-        position: 'relative',
-        height: 200,
-        background: '#151528',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
+      <div style={{ position: 'relative', height: 200, background: '#151528', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {hasImage ? (
-          <>
-            <img
-              src={data.imageUrl as string}
-              alt="generated"
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-              }}
-            />
-            <div style={{
-              position: 'absolute',
-              top: 4,
-              right: 4,
-              display: 'flex',
-              gap: 4,
-            }}>
-              <button
-                onClick={() => onDownload && onDownload((data as any).id || '')}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: 10,
-                  background: 'rgba(0,0,0,0.7)',
-                  border: 'none',
-                  borderRadius: 4,
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
-                title={isZh ? '下载' : 'Download'}
-              >
-                ⬇
-              </button>
-            </div>
-          </>
+          <img src={data.imageUrl as string} alt="generated" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         ) : (
           <div style={{ textAlign: 'center', color: '#555' }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>
-              {data.nodeType === 'txt2img' ? '🎨' : data.nodeType === 'img2img' ? '🖼️' : '📈'}
-            </div>
-            <div style={{ fontSize: 12 }}>
-              {isZh ? '等待生成图片...' : 'Waiting for image...'}
-            </div>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>{data.nodeType === 'txt2img' ? '\ud83c\udfa8' : data.nodeType === 'img2img' ? '\ud83d\uddbc' : '\ud83d\udcc8'}</div>
+            <div style={{ fontSize: 12 }}>{isZh ? '\u7b49\u5f85\u751f\u6210\u56fe\u7247...' : 'Waiting for image...'}</div>
           </div>
         )}
-        
-        <div style={{
-          position: 'absolute',
-          left: 4,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: nodeDef.color,
-          opacity: 0.5,
-        }} />
-        <div style={{
-          position: 'absolute',
-          right: 4,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          background: nodeDef.color,
-          opacity: 0.5,
-        }} />
+        <div style={{ position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)', width: 8, height: 8, borderRadius: '50%', background: nodeDef.color, opacity: 0.5 }} />
+        <div style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', width: 8, height: 8, borderRadius: '50%', background: nodeDef.color, opacity: 0.5 }} />
       </div>
 
       <div style={{ padding: 12 }}>
         {(data.nodeType === 'img2img' || data.nodeType === 'inpaint' || data.nodeType === 'outpaint') && (
           <div style={{ marginBottom: 10 }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: 6,
-            }}>
-              <span style={{ fontSize: 11, color: '#888' }}>
-                {isZh ? '输入图片' : 'Input Image'}
-              </span>
-              {hasInputImage && (
-                <button
-                  onClick={() => onRemoveInput && onRemoveInput((data as any).id || '')}
-                  style={{
-                    padding: '2px 6px',
-                    fontSize: 10,
-                    background: '#ef4444',
-                    border: 'none',
-                    borderRadius: 4,
-                    color: '#fff',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isZh ? '移除' : 'Remove'}
-                </button>
-              )}
-            </div>
+            <span style={{ fontSize: 11, color: '#888' }}>{isZh ? '\u8f93\u5165\u56fe\u7247' : 'Input Image'}</span>
             {hasInputImage ? (
-              <div style={{
-                position: 'relative',
-                borderRadius: 8,
-                overflow: 'hidden',
-                border: '1px solid #3a3a5a',
-              }}>
-                <img
-                  src={data.inputImageUrl as string}
-                  alt="input"
-                  style={{
-                    width: '100%',
-                    height: 80,
-                    objectFit: 'cover',
-                  }}
-                />
-              </div>
+              <img src={data.inputImageUrl as string} alt="input" style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #3a3a5a', marginTop: 6 }} />
             ) : (
-              <input
-                ref={inputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => onImageUpload && onImageUpload((data as any).id || '', e)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  fontSize: 11,
-                  background: '#252542',
-                  border: '1px dashed #3a3a5a',
-                  borderRadius: 8,
-                  color: '#888',
-                  cursor: 'pointer',
-                }}
-              />
+              <input ref={inputRef} type="file" accept="image/*" style={{ width: '100%', padding: '8px', fontSize: 11, background: '#252542', border: '1px dashed #3a3a5a', borderRadius: 8, color: '#888', cursor: 'pointer', marginTop: 6 }} />
             )}
           </div>
         )}
 
         <textarea
-          placeholder={isZh ? '输入描述词...' : 'Enter prompt...'}
+          placeholder={isZh ? '\u8f93\u5165\u63cf\u8ff0\u8bcd...' : 'Enter prompt...'}
           value={data.prompt}
-          onChange={(e) => {
-            const event = { target: { value: e.target.value } } as any;
-            if (onEdit) onEdit((data as any).id || '');
-          }}
-          style={{
-            width: '100%',
-            height: 60,
-            padding: 10,
-            fontSize: 12,
-            background: '#252542',
-            border: '1px solid #3a3a5a',
-            borderRadius: 8,
-            color: '#ddd',
-            resize: 'none',
-            outline: 'none',
-            marginBottom: 10,
-            fontFamily: 'inherit',
-          }}
+          onChange={() => {}}
+          style={{ width: '100%', height: 60, padding: 10, fontSize: 12, background: '#252542', border: '1px solid #3a3a5a', borderRadius: 8, color: '#ddd', resize: 'none', outline: 'none', marginBottom: 10, fontFamily: 'inherit' }}
         />
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-          <select
-            value={data.size}
-            onChange={(e) => {
-              if (onEdit) onEdit((data as any).id || '');
-            }}
-            style={{
-              flex: 1,
-              padding: '6px',
-              fontSize: 11,
-              background: '#252542',
-              border: '1px solid #3a3a5a',
-              borderRadius: 6,
-              color: '#aaa',
-              cursor: 'pointer',
-            }}
-          >
-            {SIZES.map(size => (
-              <option key={size.value} value={size.value}>{size.label}</option>
-            ))}
+          <select value={data.size} onChange={() => {}} style={{ flex: 1, padding: '6px', fontSize: 11, background: '#252542', border: '1px solid #3a3a5a', borderRadius: 6, color: '#aaa', cursor: 'pointer' }}>
+            {SIZES.map(size => <option key={size.value} value={size.value}>{size.label}</option>)}
           </select>
-          <input
-            type="number"
-            placeholder={isZh ? '种子值' : 'Seed'}
-            value={data.seed}
-            onChange={() => {}}
-            style={{
-              width: 80,
-              padding: '6px',
-              fontSize: 11,
-              background: '#252542',
-              border: '1px solid #3a3a5a',
-              borderRadius: 6,
-              color: '#aaa',
-            }}
-          />
+          <input type="number" placeholder={isZh ? '\u79cd\u5b50\u503c' : 'Seed'} value={data.seed} onChange={() => {}} style={{ width: 80, padding: '6px', fontSize: 11, background: '#252542', border: '1px solid #3a3a5a', borderRadius: 6, color: '#aaa' }} />
         </div>
 
         {data.nodeType === 'img2img' && (
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: '#888', marginBottom: 4, display: 'block' }}>
-              {isZh ? '强度' : 'Strength'}: {data.strength}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={data.strength}
-              onChange={() => {}}
-              style={{ width: '100%', accentColor: nodeDef.color }}
-            />
+            <label style={{ fontSize: 11, color: '#888', marginBottom: 4, display: 'block' }}>{isZh ? '\u5f3a\u5ea6' : 'Strength'}: {data.strength}</label>
+            <input type="range" min="0" max="1" step="0.1" value={data.strength} onChange={() => {}} style={{ width: '100%', accentColor: nodeDef.color }} />
           </div>
         )}
 
         {data.nodeType === 'upscale' && (
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: '#888', marginBottom: 4, display: 'block' }}>
-              {isZh ? '放大倍数' : 'Scale'}: {data.scale}x
-            </label>
-            <input
-              type="range"
-              min="2"
-              max="4"
-              step="1"
-              value={data.scale}
-              onChange={() => {}}
-              style={{ width: '100%', accentColor: nodeDef.color }}
-            />
+            <label style={{ fontSize: 11, color: '#888', marginBottom: 4, display: 'block' }}>{isZh ? '\u653e\u5927\u500d\u6570' : 'Scale'}: {data.scale}x</label>
+            <input type="range" min="2" max="4" step="1" value={data.scale} onChange={() => {}} style={{ width: '100%', accentColor: nodeDef.color }} />
           </div>
         )}
 
-        <button
-          onClick={() => onGenerate && onGenerate((data as any).id || '')}
-          disabled={isGenerating}
-          style={{
-            width: '100%',
-            padding: '8px',
-            fontSize: 13,
-            background: isGenerating ? '#4a4a6a' : nodeDef.color,
-            border: 'none',
-            borderRadius: 8,
-            color: '#fff',
-            cursor: isGenerating ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          {isGenerating ? (isZh ? '生成中...' : 'Generating...') : getActionLabel()}
+        <button disabled style={{ width: '100%', padding: '8px', fontSize: 13, background: '#4a4a6a', border: 'none', borderRadius: 8, color: '#fff', cursor: 'not-allowed', fontWeight: 600 }}>
+          {isZh ? '\uff08\u7b49\u63a5\u5165 API\uff09' : '(API pending)'}
         </button>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 11,
-          color: '#666',
-          marginTop: 8,
-        }}>
-          <span>📝 1</span>
-          <span>📐 1:1</span>
-          <div style={{ flex: 1 }} />
-          <button
-            onClick={() => onCopyPrompt && onCopyPrompt((data as any).id || '')}
-            style={{
-              padding: '2px 8px',
-              fontSize: 10,
-              background: 'transparent',
-              border: '1px solid #3a3a5a',
-              borderRadius: 4,
-              color: '#888',
-              cursor: 'pointer',
-            }}
-          >
-            {isZh ? '复制' : 'Copy'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#666', marginTop: 8 }}>
+          <span>\ud83d\udcdd 1</span>
+          <span>\ud83d\udcd0 1:1</span>
         </div>
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{
-          width: 14,
-          height: 14,
-          background: nodeDef.color,
-          border: `2px solid ${nodeDef.color}`,
-          borderRadius: '50%',
-          right: -7,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          cursor: 'crosshair',
-        }}
-      />
+      <Handle type="source" position={Position.Right} style={{ width: 14, height: 14, background: nodeDef.color, border: `2px solid ${nodeDef.color}`, borderRadius: '50%', right: -7, top: '50%', transform: 'translateY(-50%)', cursor: 'crosshair' }} />
     </div>
   );
 }
 
-const nodeTypes = {
-  workflow: ImageNode,
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const nodeTypes: Record<string, any> = { workflow: ImageNode };
 
-export default function WorkflowCanvas({
-  lang,
-  apiUrl,
-  isGenerating: parentIsGenerating,
-}: WorkflowCanvasProps) {
+export default function WorkflowCanvas({ lang }: WorkflowCanvasProps) {
   const [nodes, setNodes] = useNodesState<Node<WfNodeData>>([]);
   const [edges, setEdges] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -567,7 +200,6 @@ export default function WorkflowCanvas({
   const [connectionMenu, setConnectionMenu] = useState<{ x: number; y: number; sourceNodeId: string; sourceHandleId: string } | null>(null);
   const [connectionSource, setConnectionSource] = useState<{ nodeId: string; handleId: string } | null>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance | null>(null);
-  const [generatingNodes, setGeneratingNodes] = useState<Set<string>>(new Set());
   const isZh = lang === 'zh';
 
   const createNode = useCallback((type: NodeType, position: { x: number; y: number }) => {
@@ -576,24 +208,14 @@ export default function WorkflowCanvas({
       type: 'workflow',
       position,
       data: {
-        nodeType: type,
-        status: '',
-        imageUrl: '',
-        inputImageUrl: '',
-        prompt: '',
-        negative: '',
-        size: '1024×1024',
-        strength: 0.7,
-        seed: '',
-        scale: 2,
-        maskPrompt: '',
-        expandDirection: 'all',
+        nodeType: type, status: '', imageUrl: '', inputImageUrl: '', prompt: '', negative: '',
+        size: '1024\u00d71024', strength: 0.7, seed: '', scale: 2, maskPrompt: '', expandDirection: '', lang,
       } as WfNodeData,
     };
     setNodes(nds => [...nds, newNode]);
     setSelectedNodeId(newNode.id);
     return newNode.id;
-  }, [setNodes]);
+  }, [setNodes, lang]);
 
   const onPaneContextMenu = useCallback((event: MouseEvent | React.MouseEvent | TouchEvent) => {
     event.preventDefault();
@@ -607,52 +229,26 @@ export default function WorkflowCanvas({
     setSelectedNodeId(null);
   }, []);
 
-  const onConnectStart = useCallback(
-    (_: any, node: { nodeId: string | null; handleId: string | null; handleType: 'source' | 'target' | null }) => {
-      if (node.handleType === 'source' && node.nodeId && node.handleId) {
-        setConnectionSource({ nodeId: node.nodeId, handleId: node.handleId });
-      }
-    },
-    []
-  );
+  const onConnectStart = useCallback((_: unknown, node: { nodeId: string | null; handleId: string | null; handleType: 'source' | 'target' | null }) => {
+    if (node.handleType === 'source' && node.nodeId && node.handleId) setConnectionSource({ nodeId: node.nodeId, handleId: node.handleId });
+  }, []);
 
   const onConnectEnd = useCallback((event: MouseEvent | React.MouseEvent | TouchEvent) => {
     const e = event as unknown as MouseEvent;
     if (!e.clientX) return;
     const target = e.target as HTMLElement;
     if (!target.closest('.react-flow__node') && !target.closest('.react-flow__handle')) {
-      setConnectionMenu({
-        x: e.clientX,
-        y: e.clientY,
-        sourceNodeId: connectionSource?.nodeId || '',
-        sourceHandleId: connectionSource?.handleId || '',
-      });
+      setConnectionMenu({ x: e.clientX, y: e.clientY, sourceNodeId: connectionSource?.nodeId || '', sourceHandleId: connectionSource?.handleId || '' });
     }
     setConnectionSource(null);
   }, [connectionSource]);
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      setEdges((eds) => addEdge({
-        ...connection,
-        animated: true,
-        style: { stroke: '#8b5cf6', strokeWidth: 2 },
-      }, eds));
-    },
-    [setEdges]
-  );
+  const onConnect = useCallback((connection: Connection) => {
+    setEdges((eds) => addEdge({ ...connection, animated: true, style: { stroke: '#8b5cf6', strokeWidth: 2 } }, eds));
+  }, [setEdges]);
 
-  const onNodesChange = useCallback(
-    (changes: Parameters<typeof applyNodeChanges>[0]) =>
-      setNodes((nds) => applyNodeChanges(changes, nds) as Node<WfNodeData>[]),
-    [setNodes]
-  );
-
-  const onEdgesChange = useCallback(
-    (changes: Parameters<typeof applyEdgeChanges>[0]) =>
-      setEdges((eds) => applyEdgeChanges(changes, eds) as Edge[]),
-    [setEdges]
-  );
+  const onNodesChange = useCallback((changes: Parameters<typeof applyNodeChanges>[0]) => setNodes((nds) => applyNodeChanges(changes, nds) as Node<WfNodeData>[]), [setNodes]);
+  const onEdgesChange = useCallback((changes: Parameters<typeof applyEdgeChanges>[0]) => setEdges((eds) => applyEdgeChanges(changes, eds) as Edge[]), [setEdges]);
 
   const onKeyDown = useCallback((e: globalThis.KeyboardEvent) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodeId) {
@@ -667,154 +263,7 @@ export default function WorkflowCanvas({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onKeyDown]);
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  }, []);
-
-  const handleNodeImageUpload = useCallback((nodeId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const imageUrl = evt.target?.result as string;
-      setNodes(nds => nds.map(node => {
-        if (node.id === nodeId) {
-          return {
-            ...node,
-            data: { ...node.data, inputImageUrl: imageUrl } as WfNodeData,
-          };
-        }
-        return node;
-      }));
-    };
-    reader.readAsDataURL(file);
-  }, [setNodes]);
-
-  const handleNodeGenerate = useCallback(async (nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
-
-    if (!node.data.prompt && node.data.nodeType === 'txt2img') {
-      alert(isZh ? '请输入描述词' : 'Please enter a prompt');
-      return;
-    }
-
-    setGeneratingNodes(prev => new Set(prev).add(nodeId));
-    setNodes(nds => nds.map(n => {
-      if (n.id === nodeId) {
-        return { ...n, data: { ...n.data, status: 'running' } as WfNodeData };
-      }
-      return n;
-    }));
-
-    try {
-      let endpoint = '/api/images/generate';
-      let body: Record<string, unknown> = {
-        model: 'gemini-3.1-flash-image-preview',
-        prompt: node.data.prompt,
-        size: node.data.size,
-        n: 1,
-        quality: 'high',
-      };
-
-      if (node.data.nodeType === 'img2img' && node.data.inputImageUrl) {
-        body.image = node.data.inputImageUrl;
-        body.strength = node.data.strength;
-      }
-
-      const resp = await fetch(`${apiUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const data = await resp.json() as Record<string, unknown>;
-
-      if (!resp.ok) throw new Error((data as any)?.error?.message || 'Generation failed');
-
-      const taskId = (data as any).taskId as string;
-
-      for (let attempt = 0; attempt < 60; attempt++) {
-        await new Promise(r => setTimeout(r, 3000));
-        const pollResp = await fetch(`${apiUrl}/api/images/task/${taskId}`);
-        const pollData = await pollResp.json() as Record<string, unknown>;
-        const state = (pollData as any).state as string;
-
-        if (state === 'succeeded') {
-          const images = (pollData as any).images as string[];
-          if (images && images.length > 0) {
-            setNodes(nds => nds.map(n => {
-              if (n.id === nodeId) {
-                return { 
-                  ...n, 
-                  data: { 
-                    ...n.data, 
-                    imageUrl: images[0],
-                    status: 'done' 
-                  } as WfNodeData 
-                };
-              }
-              return n;
-            }));
-          }
-          break;
-        } else if (state === 'failed' || state === 'error') {
-          throw new Error('Generation failed');
-        }
-      }
-    } catch (err) {
-      setNodes(nds => nds.map(n => {
-        if (n.id === nodeId) {
-          return { ...n, data: { ...n.data, status: 'error' } as WfNodeData };
-        }
-        return n;
-      }));
-      console.error('Generation error:', err);
-    } finally {
-      setGeneratingNodes(prev => {
-        const next = new Set(prev);
-        next.delete(nodeId);
-        return next;
-      });
-    }
-  }, [nodes, apiUrl, isZh, setNodes]);
-
-  const handleNodeDownload = useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node || !node.data.imageUrl) return;
-
-    const link = document.createElement('a');
-    link.href = node.data.imageUrl;
-    link.download = `workflow-${node.data.nodeType}-${Date.now()}.png`;
-    link.click();
-  }, [nodes]);
-
-  const handleNodeDelete = useCallback((nodeId: string) => {
-    setNodes(nds => nds.filter(n => n.id !== nodeId));
-    setEdges(eds => eds.filter(ed => ed.source !== nodeId && ed.target !== nodeId));
-    if (selectedNodeId === nodeId) {
-      setSelectedNodeId(null);
-    }
-  }, [selectedNodeId, setNodes, setEdges]);
-
-  const handleNodeCopyPrompt = useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
-    navigator.clipboard.writeText(node.data.prompt || '');
-  }, [nodes]);
-
-  const handleRemoveInput = useCallback((nodeId: string) => {
-    setNodes(nds => nds.map(n => {
-      if (n.id === nodeId) {
-        return { ...n, data: { ...n.data, inputImageUrl: '' } as WfNodeData };
-      }
-      return n;
-    }));
-  }, [setNodes]);
-
-  const handleEditNode = useCallback((nodeId: string) => {
-    setSelectedNodeId(nodeId);
-  }, []);
+  const onDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }, []);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -823,51 +272,26 @@ export default function WorkflowCanvas({
       const reader = new FileReader();
       reader.onload = (evt) => {
         const imageUrl = evt.target?.result as string;
-        
         if (rfInstance) {
-          const position = rfInstance.screenToFlowPosition({
-            x: e.clientX,
-            y: e.clientY,
-          });
-          
-          const newNode: Node<WfNodeData> = {
-            id: `node-${Date.now()}`,
-            type: 'workflow',
+          const position = rfInstance.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+          setNodes(nds => [...nds, {
+            id: `node-${Date.now()}`, type: 'workflow',
             position: { x: position.x - 180, y: position.y - 150 },
-            data: {
-              nodeType: 'img2img',
-              status: '',
-              imageUrl: '',
-              inputImageUrl: imageUrl,
-              prompt: '',
-              negative: '',
-              size: '1024×1024',
-              strength: 0.7,
-              seed: '',
-              scale: 2,
-              maskPrompt: '',
-              expandDirection: 'all',
-            } as WfNodeData,
-          };
-          setNodes(nds => [...nds, newNode]);
+            data: { nodeType: 'img2img', status: '', imageUrl: '', inputImageUrl: imageUrl, prompt: '', negative: '', size: '1024\u00d71024', strength: 0.7, seed: '', scale: 2, maskPrompt: '', expandDirection: '', lang } as WfNodeData,
+          }]);
         }
       };
       reader.readAsDataURL(files[0]);
     }
-  }, [rfInstance, setNodes]);
+  }, [rfInstance, setNodes, lang]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onNodeClick = useCallback((_: unknown, node: any) => setSelectedNodeId(node.id), []);
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        background: '#0f0f1a',
-      }}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-    >
+    <div style={{ position: 'absolute', inset: 0, background: '#0f0f1a' }} onDragOver={onDragOver} onDrop={onDrop}>
       <ReactFlow
-        nodes={nodes}
+        nodes={nodes.map(n => ({ ...n, data: { ...n.data, lang } }))}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -876,7 +300,7 @@ export default function WorkflowCanvas({
         onConnectEnd={onConnectEnd}
         onPaneContextMenu={onPaneContextMenu}
         onPaneClick={onPaneClick}
-        onNodeClick={(_, node) => setSelectedNodeId(node.id)}
+        onNodeClick={onNodeClick}
         onInit={setRfInstance}
         nodeTypes={nodeTypes}
         fitView
@@ -885,172 +309,61 @@ export default function WorkflowCanvas({
         maxZoom={2}
         style={{ background: '#0f0f1a' }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color="#2a2a4a"
-        />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#2a2a4a" />
 
         {nodes.length === 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              color: '#4a4a6a',
-              pointerEvents: 'none',
-            }}
-          >
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🎨</div>
-            <div style={{ fontSize: 14 }}>{isZh ? '右键点击创建节点' : 'Right-click to create node'}</div>
-            <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>
-              {isZh ? '拖拽图片自动创建图生图节点' : 'Or drop an image to create img2img node'}
-            </div>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', color: '#4a4a6a', pointerEvents: 'none' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>\ud83c\udfa8</div>
+            <div style={{ fontSize: 14 }}>{isZh ? '\u53f3\u952e\u70b9\u51fb\u521b\u5efa\u8282\u70b9' : 'Right-click to create node'}</div>
+            <div style={{ fontSize: 12, marginTop: 8, opacity: 0.7 }}>{isZh ? '\u62d6\u62fd\u56fe\u7247\u81ea\u52a8\u521b\u5efa\u56fe\u751f\u56fe\u8282\u70b9' : 'Or drop an image to create img2img node'}</div>
           </div>
         )}
 
         <Panel position="top-right">
-          <div style={{
-            display: 'flex',
-            gap: 8,
-          }}>
-            <button
-              onClick={() => rfInstance?.fitView({ padding: 0.2 })}
-              style={{
-                padding: '8px 16px',
-                fontSize: 12,
-                background: '#1a1a2e',
-                border: '1px solid #2a2a4a',
-                borderRadius: 8,
-                color: '#aaa',
-                cursor: 'pointer',
-              }}
-            >
-              {isZh ? '适应画布' : 'Fit View'}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => rfInstance?.fitView({ padding: 0.2 })} style={{ padding: '8px 16px', fontSize: 12, background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8, color: '#aaa', cursor: 'pointer' }}>
+              {isZh ? '\u9002\u5e94\u753b\u5e03' : 'Fit View'}
             </button>
-            <button
-              onClick={() => {
-                if (rfInstance) {
-                  const center = rfInstance.screenToFlowPosition({
-                    x: window.innerWidth / 2,
-                    y: window.innerHeight / 2,
-                  });
-                  createNode('txt2img', { x: center.x - 180, y: center.y - 150 });
-                }
-              }}
-              style={{
-                padding: '8px 16px',
-                fontSize: 12,
-                background: '#8b5cf6',
-                border: 'none',
-                borderRadius: 8,
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-            >
-              + {isZh ? '文生图' : 'Text→Image'}
+            <button onClick={() => {
+              if (rfInstance) {
+                const center = rfInstance.screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+                createNode('txt2img', { x: center.x - 180, y: center.y - 150 });
+              }
+            }} style={{ padding: '8px 16px', fontSize: 12, background: '#8b5cf6', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+              + {isZh ? '\u6587\u751f\u56fe' : 'Text\u2192Image'}
             </button>
           </div>
         </Panel>
       </ReactFlow>
 
       {contextMenu && (
-        <div
-          style={{
-            position: 'fixed',
-            left: contextMenu.x,
-            top: contextMenu.y,
-            background: '#1a1a2e',
-            border: '1px solid #2a2a4a',
-            borderRadius: 10,
-            padding: '8px 0',
-            minWidth: 200,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            zIndex: 1000,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{
-            padding: '6px 12px',
-            fontSize: 11,
-            color: '#666',
-            borderBottom: '1px solid #2a2a4a',
-            marginBottom: 4,
-          }}>
-            {isZh ? '创建节点' : 'Create Node'}
-          </div>
+        <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 10, padding: '8px 0', minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1000 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ padding: '6px 12px', fontSize: 11, color: '#666', borderBottom: '1px solid #2a2a4a', marginBottom: 4 }}>{isZh ? '\u521b\u5efa\u8282\u70b9' : 'Create Node'}</div>
           {NODE_DEFS.map(def => (
-            <button
-              key={def.type}
-              onClick={() => {
-                if (rfInstance) {
-                  const position = rfInstance.screenToFlowPosition({
-                    x: contextMenu.x,
-                    y: contextMenu.y,
-                  });
-                  createNode(def.type, { x: position.x - 180, y: position.y - 150 });
-                }
-                setContextMenu(null);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                padding: '10px 14px',
-                background: 'none',
-                border: 'none',
-                color: def.color,
-                fontSize: 13,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s',
-              }}
+            <button key={def.type} onClick={() => {
+              if (rfInstance) {
+                const position = rfInstance.screenToFlowPosition({ x: contextMenu.x, y: contextMenu.y });
+                createNode(def.type, { x: position.x - 180, y: position.y - 150 });
+              }
+              setContextMenu(null);
+            }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', color: def.color, fontSize: 13, cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = '#2a2a4a')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-            >
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
               <span style={{ fontSize: 16 }}>{def.icon}</span>
               <div>
-                <div style={{ fontWeight: 500 }}>
-                  {isZh ? def.labelZh : def.label}
-                </div>
-                <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
-                  {isZh ? def.descriptionZh : def.description}
-                </div>
+                <div style={{ fontWeight: 500 }}>{isZh ? def.labelZh : def.label}</div>
+                <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>{isZh ? def.descriptionZh : def.description}</div>
               </div>
             </button>
           ))}
           {nodes.length > 0 && (
             <>
               <div style={{ margin: '6px 0', borderTop: '1px solid #2a2a4a' }} />
-              <button
-                onClick={() => { 
-                  setNodes([]); 
-                  setEdges([]); 
-                  setContextMenu(null); 
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  width: '100%',
-                  padding: '8px 14px',
-                  background: 'none',
-                  border: 'none',
-                  color: '#ef4444',
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
+              <button onClick={() => { setNodes([]); setEdges([]); setContextMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 14px', background: 'none', border: 'none', color: '#ef4444', fontSize: 13, cursor: 'pointer', textAlign: 'left' }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#2a2a4a')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-              >
-                <span>🗑️</span>
-                <span>{isZh ? '清空画布' : 'Clear All'}</span>
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}>
+                <span>\ud83d\uddd1\ufe0f</span>
+                <span>{isZh ? '\u6e05\u7a7a\u753b\u5e03' : 'Clear All'}</span>
               </button>
             </>
           )}
@@ -1058,89 +371,25 @@ export default function WorkflowCanvas({
       )}
 
       {connectionMenu && (
-        <div
-          style={{
-            position: 'fixed',
-            left: connectionMenu.x,
-            top: connectionMenu.y,
-            transform: 'translate(-50%, -50%)',
-            background: '#1a1a2e',
-            border: '1px solid #4a4a6a',
-            borderRadius: 10,
-            padding: '8px 0',
-            minWidth: 200,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            zIndex: 1001,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div style={{
-            padding: '6px 12px',
-            fontSize: 11,
-            color: '#666',
-            borderBottom: '1px solid #2a2a4a',
-            marginBottom: 4,
-          }}>
-            {isZh ? '选择节点类型' : 'Select Node Type'}
-          </div>
+        <div style={{ position: 'fixed', left: connectionMenu.x, top: connectionMenu.y, transform: 'translate(-50%, -50%)', background: '#1a1a2e', border: '1px solid #4a4a6a', borderRadius: 10, padding: '8px 0', minWidth: 200, boxShadow: '0 8px 32px rgba(0,0,0,0.5)', zIndex: 1001 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ padding: '6px 12px', fontSize: 11, color: '#666', borderBottom: '1px solid #2a2a4a', marginBottom: 4 }}>{isZh ? '\u9009\u62e9\u8282\u70b9\u7c7b\u578b' : 'Select Node Type'}</div>
           {NODE_DEFS.map(def => (
-            <button
-              key={def.type}
-              onClick={() => {
-                if (!connectionMenu || !rfInstance) return;
-                const position = rfInstance.screenToFlowPosition({ x: connectionMenu.x, y: connectionMenu.y });
-                const newNodeId = `node-${Date.now()}`;
-                
-                setNodes(nds => [...nds, {
-                  id: newNodeId,
-                  type: 'workflow',
-                  position: { x: position.x - 180, y: position.y - 75 },
-                  data: {
-                    nodeType: def.type,
-                    status: '',
-                    imageUrl: '',
-                    inputImageUrl: '',
-                    prompt: '',
-                    negative: '',
-                    size: '1024×1024',
-                    strength: 0.7,
-                    seed: '',
-                    scale: 2,
-                    maskPrompt: '',
-                    expandDirection: 'all',
-                  } as WfNodeData,
-                }]);
-                
-                if (connectionMenu.sourceNodeId && connectionMenu.sourceHandleId) {
-                  setEdges(eds => addEdge({
-                    source: connectionMenu.sourceNodeId,
-                    sourceHandle: connectionMenu.sourceHandleId,
-                    target: newNodeId,
-                    targetHandle: 'input',
-                    animated: true,
-                    style: { stroke: def.color, strokeWidth: 2 },
-                  }, eds));
-                }
-                
-                setConnectionMenu(null);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                padding: '8px 14px',
-                background: 'none',
-                border: 'none',
-                color: def.color,
-                fontSize: 13,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#2a2a4a')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-            >
+            <button key={def.type} onClick={() => {
+              if (!connectionMenu || !rfInstance) return;
+              const position = rfInstance.screenToFlowPosition({ x: connectionMenu.x, y: connectionMenu.y });
+              const newNodeId = `node-${Date.now()}`;
+              setNodes(nds => [...nds, {
+                id: newNodeId, type: 'workflow',
+                position: { x: position.x - 180, y: position.y - 75 },
+                data: { nodeType: def.type, status: '', imageUrl: '', inputImageUrl: '', prompt: '', negative: '', size: '1024\u00d71024', strength: 0.7, seed: '', scale: 2, maskPrompt: '', expandDirection: 'all', lang } as WfNodeData,
+              }]);
+              if (connectionMenu.sourceNodeId && connectionMenu.sourceHandleId) {
+                setEdges(eds => addEdge({ source: connectionMenu.sourceNodeId, sourceHandle: connectionMenu.sourceHandleId, target: newNodeId, targetHandle: 'input', animated: true, style: { stroke: def.color, strokeWidth: 2 } }, eds));
+              }
+              setConnectionMenu(null);
+            }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 14px', background: 'none', border: 'none', color: def.color, fontSize: 13, cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2a4a'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}>
               <span style={{ fontSize: 16 }}>{def.icon}</span>
               <span>{isZh ? def.labelZh : def.label}</span>
             </button>

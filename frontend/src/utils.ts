@@ -201,8 +201,8 @@ export class CacheManager {
   set(key: string, value: any, ttl: number = 3600000): void {
     // 清理旧缓存
     if (this.memoryCache.size >= this.maxSize) {
-      const oldest = this.memoryCache.keys().next().value;
-      this.memoryCache.delete(oldest);
+      const oldest = this.memoryCache.keys().next().value as string | undefined;
+      if (oldest) this.memoryCache.delete(oldest);
     }
 
     this.memoryCache.set(key, {
